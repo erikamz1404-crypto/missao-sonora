@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Missão Sonora V4</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#030914;color:#edf6ff;font-family:system-ui,Arial,sans-serif}.app{max-width:1200px;margin:auto;padding:14px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px}h1{margin:0;font-size:27px}.sub{margin:3px 0 14px;color:#9db0c5;font-size:14px}
+button{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:pointer;background:#66c8ff;color:#052033}.alt{background:#172a40;color:#edf6ff}
+.layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(310px,.75fr);gap:14px}.card{background:#0a1727;border:1px solid #19344d;border-radius:17px;padding:13px;margin-bottom:14px}
+#space{height:590px;position:relative;overflow:hidden;border-radius:13px;background:radial-gradient(#fff 1px,transparent 1.5px);background-size:77px 83px;background-color:#020712}
+.earth{position:absolute;width:240px;height:240px;border-radius:50%;left:50%;bottom:-100px;transform:translateX(-50%);background:radial-gradient(circle at 35% 30%,#6ed1ff,#1670ad 55%,#052f54);box-shadow:0 0 42px #2aaeff55}
+.atmosphere{position:absolute;width:285px;height:285px;border:7px solid #72d5ff44;border-radius:50%;left:50%;bottom:-122px;transform:translateX(-50%)}
+.orbit{position:absolute;width:470px;height:210px;border:2px dashed #7fd9ff66;border-radius:50%;left:50%;top:175px;transform:translateX(-50%)}
+.rocket{position:absolute;left:50%;bottom:125px;transform:translate(-50%,-50%);font-size:44px;z-index:3;will-change:left,bottom}.flame{position:absolute;left:50%;bottom:91px;transform:translateX(-50%);font-size:26px;z-index:2;display:none}
+.readout,.mission{position:absolute;top:10px;background:#071322dd;border:1px solid #24435e;padding:9px 11px;border-radius:10px;font-size:13px;z-index:4}.readout{left:10px}.mission{right:10px}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:9px}.metric{background:#071321;border-radius:11px;padding:10px}.metric small{display:block;color:#91a6bb}.metric b{font-size:20px;display:block;margin-top:3px}
+canvas{width:100%;height:205px;background:#06111e;border-radius:11px;border:1px solid #19344d;display:block}.status{color:#bdeaff;font-size:14px;margin:9px 0}.bar{height:9px;background:#13283d;border-radius:20px;overflow:hidden}.fill{height:100%;width:0;background:#66c8ff}
+label{font-size:13px;color:#9db0c5;display:block;margin:9px 0 4px}input[type=range]{width:100%}.note{font-size:11px;line-height:1.5;color:#8fa4b8}
+#finalPanel{display:none}.finalbox{background:#071321;border-radius:12px;padding:12px;margin-top:10px}
+@media(max-width:800px){.layout{grid-template-columns:1fr}#space{height:490px}.top{align-items:flex-start;flex-direction:column}.orbit{width:390px}}
+</style>
+
+<style id="hud-ajuste-v4">
+.hud{
+  display:grid !important;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr) !important;
+  gap:10px 18px !important;
+  align-items:center !important;
+}
+.hud-item{
+  position:static !important;
+  min-width:0 !important;
+  white-space:normal !important;
+  overflow-wrap:anywhere !important;
+}
+@media (max-width:600px){
+  .hud{
+    grid-template-columns:1fr 1fr !important;
+    gap:8px 12px !important;
+    font-size:clamp(16px,4.5vw,22px) !important;
+  }
+}
+</style>
+
+</head>
+<body><div class="app">
+<div class="top"><div><h1>🚀 Missão Sonora V4</h1><p class="sub">Voz → frequência → movimento → trajetória → análise.</p></div>
+<div><button id="start">🎙️ Iniciar missão</button> <button id="stop" class="alt" style="display:none">■ Parar</button></div></div>
+
+<div class="layout">
+<section class="card"><div id="space">
+<div class="readout">Altitude: <b id="alt">0</b> km<br>Frequência: <b id="sf">—</b><br>Fase: <b id="phase">Solo</b></div>
+<div class="mission">Status: <b id="ms">🌎 Solo</b></div>
+<div class="orbit"></div><div class="atmosphere"></div><div class="earth"></div>
+<div class="rocket" id="rocket">🚀</div><div class="flame" id="flame">🔥</div>
+</div><div class="status" id="status">Ative o microfone para começar.</div><div class="bar"><div class="fill" id="bar"></div></div></section>
+
+<section>
+<div class="card"><h3 style="margin:2px 0 10px">📊 Dados instantâneos</h3><div class="metrics">
+<div class="metric"><small>Frequência</small><b id="freq">— Hz</b></div><div class="metric"><small>Amplitude</small><b id="amp">—</b></div>
+<div class="metric"><small>Período</small><b id="period">— ms</b></div><div class="metric"><small>Velocidade do modelo*</small><b id="vel">—</b></div></div></div>
+
+<div class="card"><h3 style="margin:2px 0 10px">📈 Frequência × tempo</h3><canvas id="freqGraph"></canvas></div>
+<div class="card"><h3 style="margin:2px 0 10px">📈 Altitude × tempo</h3><canvas id="altGraph"></canvas></div>
+
+<div class="card"><h3 style="margin:2px 0 8px">🎯 Missão</h3>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button id="mission1">1 · Decolagem</button><button id="mission2" class="alt">2 · Ascensão</button><button id="mission3" class="alt">3 · Órbita</button><button id="reset" class="alt">↻ Reiniciar</button></div>
+<p id="missionText" class="note">Decolagem: produza um som e faça o foguete sair do solo.</p></div>
+
+<div class="card"><h3 style="margin:2px 0 8px">🏁 Resultado</h3><div class="metrics">
+<div class="metric"><small>Maior frequência</small><b id="peakF">—</b></div><div class="metric"><small>Maior altitude</small><b id="peakA">0 km</b></div>
+<div class="metric"><small>Tempo de voo</small><b id="flightT">0,0 s</b></div><div class="metric"><small>Tempo em órbita</small><b id="orbitT">0,0 s</b></div></div>
+<p id="result" class="note">Ainda não há uma missão concluída.</p></div>
+
+<div class="card"><h3 style="margin:2px 0 8px">⚙️ Configuração</h3>
+<label>Frequência de referência para órbita: <span id="tl">800</span> Hz</label><input id="target" type="range" min="200" max="2000" value="800">
+<label>Altitude máxima: <span id="ml">400</span> km</label><input id="maxAlt" type="range" min="100" max="1000" value="400">
+<label>Sensibilidade: <span id="sl">1.0</span></label><input id="sens" type="range" min=".4" max="2" step=".1" value="1">
+</div>
+
+<div class="card" id="finalPanel"><h3 style="margin:2px 0 8px">🧪 Análise da experiência</h3>
+<div class="finalbox"><b>O que aconteceu?</b><p id="analysis" class="note"></p></div>
+<div class="finalbox"><b>Conceitos físicos envolvidos</b><p class="note">Frequência está relacionada à altura (grave/agudo) do som. O período é o intervalo correspondente a um ciclo. A amplitude representa a intensidade relativa do sinal captado. Os gráficos mostram como as grandezas variaram durante a experiência.</p></div>
+<div class="finalbox"><b>Observação científica</b><p class="note">O foguete é um modelo didático. Na realidade, frequência sonora não produz diretamente uma força que coloque um foguete em órbita. A experiência usa essa relação como regra de controle para estudar dados e ondas.</p></div>
+</div>
+</section></div></div>
+
+<script>
+const $=id=>document.getElementById(id),fg=$('freqGraph'),ag=$('altGraph'),fx=fg.getContext('2d'),ax=ag.getContext('2d');
+let audio,an,stream,data,raf,historyF=[],historyA=[],currentAlt=0,lastF=0,mission=1,startTime=0,peakF=0,peakA=0,orbitStart=0,orbitAccum=0;
+let orbitAngle=0,flightX=.5,flightY=0;
+const target=$('target'),maxAlt=$('maxAlt'),sens=$('sens');
+function resize(){for(const c of [fg,ag]){let d=devicePixelRatio||1,r=c.getBoundingClientRect();c.width=r.width*d;c.height=r.height*d;c.getContext('2d').setTransform(d,0,0,d,0,0)}}addEventListener('resize',resize);resize();
+target.oninput=()=>$('tl').textContent=target.value;maxAlt.oninput=()=>$('ml').textContent=maxAlt.value;sens.oninput=()=>$('sl').textContent=sens.value;
+function chart(ctx,arr,maxY,label){const w=ctx.canvas.clientWidth,h=ctx.canvas.clientHeight;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#183149';ctx.lineWidth=1;for(let i=1;i<5;i++){ctx.beginPath();ctx.moveTo(0,i*h/5);ctx.lineTo(w,i*h/5);ctx.stroke()}ctx.fillStyle='#8298ad';ctx.font='11px Arial';ctx.fillText(label,8,14);if(arr.length<2)return;ctx.strokeStyle='#66c8ff';ctx.lineWidth=2;ctx.beginPath();arr.forEach((v,i)=>{let X=i/(arr.length-1)*w,Y=h-10-(Math.min(maxY,Math.max(0,v))/maxY)*(h-25);i?ctx.lineTo(X,Y):ctx.moveTo(X,Y)});ctx.stroke()}
+function setMissionText(n){mission=+n;const t={1:'Decolagem: produza um som e faça o foguete ultrapassar 12% da altitude máxima.',2:'Ascensão: aumente a frequência para levar o foguete acima de 65% da altitude máxima.',3:'Órbita: alcance a região orbital e mantenha o foguete nela por 3 segundos.'};$('missionText').textContent=t[mission]}
+function resetMission(){currentAlt=0;lastF=0;historyF=[];historyA=[];startTime=0;peakF=0;peakA=0;orbitStart=0;orbitAccum=0;orbitAngle=0;flightX=.5;flightY=0;$('alt').textContent='0';$('sf').textContent='—';$('phase').textContent='Solo';$('freq').textContent='— Hz';$('period').textContent='— ms';$('amp').textContent='—';$('vel').textContent='—';$('bar').style.width='0%';$('rocket').style.left='50%';$('rocket').style.bottom='125px';$('rocket').style.transform='translate(-50%,-50%)';$('flame').style.display='none';$('ms').textContent='🌎 Solo';$('flightT').textContent='0,0 s';$('orbitT').textContent='0,0 s';$('peakF').textContent='—';$('peakA').textContent='0 km';$('result').textContent='Ainda não há uma missão concluída.';$('finalPanel').style.display='none';setMissionText(1);chart(fx,[],2000,'Hz');chart(ax,[],+maxAlt.value,'km')}
+$('mission1').onclick=()=>setMissionText(1);$('mission2').onclick=()=>setMissionText(2);$('mission3').onclick=()=>setMissionText(3);$('reset').onclick=resetMission;
+
+function loop(){
+ raf=requestAnimationFrame(loop);an.getByteTimeDomainData(data);let sum=0;for(let v of data){let q=(v-128)/128;sum+=q*q}
+ let rms=Math.sqrt(sum/data.length),cross=[];for(let i=1;i<data.length;i++)if(data[i-1]<128&&data[i]>=128)cross.push(i);
+ let f=0;if(cross.length>2){let z=0;for(let i=1;i<cross.length;i++)z+=cross[i]-cross[i-1];f=audio.sampleRate/(z/(cross.length-1))}
+ if(f>20&&f<20000)lastF=f;$('amp').textContent=rms.toFixed(2);
+ if(lastF>20){
+  $('freq').textContent=Math.round(lastF)+' Hz';$('sf').textContent=Math.round(lastF)+' Hz';$('period').textContent=(1000/lastF).toFixed(2)+' ms';
+  let maxA=+maxAlt.value,ref=+target.value,s=+sens.value,targetAlt=Math.min(maxA,Math.max(0,(lastF/ref)*maxA*s));if(rms<.035)targetAlt*=.15;
+  currentAlt+=(targetAlt-currentAlt)*.09;let pct=currentAlt/maxA;$('alt').textContent=Math.round(currentAlt);$('bar').style.width=(pct*100)+'%';
+  let inOrbit=pct>.92;
+  if(inOrbit){
+    if(!orbitStart)orbitStart=performance.now();orbitAccum=(performance.now()-orbitStart)/1000;orbitAngle+=.045;
+    const rx=50+29*Math.cos(orbitAngle),ry=175+62*Math.sin(orbitAngle);
+    $('rocket').style.left=rx+'%';$('rocket').style.bottom=(ry+145)+'px';$('rocket').style.transform='translate(-50%,-50%) rotate('+(Math.sin(orbitAngle)*22)+'deg)';
+    $('phase').textContent='Órbita';$('orbitT').textContent=orbitAccum.toFixed(1).replace('.',',')+' s';
+  }else{
+    orbitStart=0;let lift=125+pct*310;$('rocket').style.left=(50+(lastF-ref)/ref*12)+'%';$('rocket').style.bottom=lift+'px';$('rocket').style.transform='translate(-50%,-50%) rotate('+((lastF-ref)/ref*12)+'deg)';$('phase').textContent=pct>.65?'Ascensão':pct>.12?'Subida':'Solo';
+  }
+  $('flame').style.display=rms>.035?'block':'none';$('ms').textContent=inOrbit?'🛰️ Em órbita':pct>.12?'🚀 Em voo':'🌎 Solo';
+  $('status').textContent=inOrbit?'Órbita atingida! Mantenha o som estável.':rms<.035?'Produza um som para controlar o foguete.':'Foguete respondendo ao som!';
+  if(startTime){let elapsed=(performance.now()-startTime)/1000;$('flightT').textContent=elapsed.toFixed(1).replace('.',',')+' s';if(lastF>peakF)peakF=lastF;if(currentAlt>peakA)peakA=currentAlt;$('peakF').textContent=Math.round(peakF)+' Hz';$('peakA').textContent=Math.round(peakA)+' km';
+    if(mission===1&&currentAlt>maxA*.12)setMissionText(2);if(mission===2&&currentAlt>maxA*.65)setMissionText(3);
+    if(mission===3&&orbitAccum>=3){$('result').textContent='Missão concluída! Você alcançou e manteve a órbita por pelo menos 3 s.';$('finalPanel').style.display='block';$('analysis').textContent='Durante '+$('flightT').textContent+' de experiência, a maior frequência registrada foi '+Math.round(peakF)+' Hz e a maior altitude foi '+Math.round(peakA)+' km. O gráfico de altitude acompanha a resposta do modelo à frequência captada pelo microfone.'}
+  }
+  let pseudoVelocity=Math.max(0,(targetAlt-currentAlt)*.8);$('vel').textContent=pseudoVelocity.toFixed(1)+' km/s';
+  historyF.push(lastF);historyA.push(currentAlt);if(historyF.length>220)historyF.shift();if(historyA.length>220)historyA.shift();chart(fx,historyF,2000,'Hz');chart(ax,historyA,maxA,'km');
+ }
+}
+$('start').onclick=async()=>{try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});audio=new(window.AudioContext||window.webkitAudioContext)();an=audio.createAnalyser();an.fftSize=2048;an.smoothingTimeConstant=.02;audio.createMediaStreamSource(stream).connect(an);data=new Uint8Array(an.fftSize);startTime=performance.now();$('start').style.display='none';$('stop').style.display='inline-block';$('status').textContent='Microfone ativo — produza um som!';loop()}catch(e){$('status').textContent='Não foi possível acessar o microfone. Permita o acesso no navegador.'}};
+$('stop').onclick=()=>{cancelAnimationFrame(raf);if(stream)stream.getTracks().forEach(t=>t.stop());if(audio)audio.close();$('start').style.display='inline-block';$('stop').style.display='none';$('status').textContent='Microfone desligado.'};
+</script></body></html>
